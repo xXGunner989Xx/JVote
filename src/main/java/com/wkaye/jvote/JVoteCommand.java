@@ -14,6 +14,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
+// TODO: implement 1-day cooldown
+// TODO: implement string config and permissions config
 public class JVoteCommand implements CommandExecutor {
     private final JVote plugin;
     // need thread safety for this variable so that two players cant start a vote at the same time
@@ -62,6 +64,7 @@ public class JVoteCommand implements CommandExecutor {
             // vote started, check that the user actually supplied a yes or no vote
             if (!(args[0].equalsIgnoreCase("yes") || args[0].equalsIgnoreCase("no"))) {
                 // invalid usage, return false
+                player.sendMessage("[JVote] A vote is already in progress.");
                 plugin.logger(Level.WARNING, "Attempted /vote after vote started with improper args");
                 return true;
             }
@@ -114,6 +117,7 @@ public class JVoteCommand implements CommandExecutor {
             currentVotePercentage = (double) totalVotes.incrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
         } else if (arg.equalsIgnoreCase("no")) {
+            plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Someone has voted no!"));
             totalVotes.decrementAndGet();
         }
         return currentVotePercentage >= 0.5;
@@ -132,9 +136,14 @@ public class JVoteCommand implements CommandExecutor {
         } else {
             switch (currentVoteType) {
                 case DAY:
-                    long ticks = TimeTickConverter.hoursMinutesToTicks(6, 0);
-                    world.setTime(ticks);
+                    world.setTime(TimeTickConverter.hoursMinutesToTicks(6, 0));
                     break;
+                case NIGHT:
+                    world.setTime(TimeTickConverter.hoursMinutesToTicks(19, 0));
+                case CLEAR:
+                    world.setStorm(false);
+                case STORMY:
+                    world.setStorm(true);
                 default:
                     plugin.logger(Level.WARNING, "Not implemented yet");
             }
@@ -153,8 +162,7 @@ public class JVoteCommand implements CommandExecutor {
         playerHasVoted.clear();
     }
 
-    // this function will handle the timer and check that the vote has passed.
-    // TODO: check player counts / voting percentage.
+    // this function will handle the timer and check that the vote has passed at 1s intervals
     private void doVoteTimer(JVoteEnums cmd) {
         if (!voteStarted.get()) {
             AtomicInteger count = new AtomicInteger(30);

@@ -1,14 +1,9 @@
 name: JVote
-version: ${project.version}
+version: 1.0.0
 main: com.wkaye.jvote.JVote
-api-version: 1.0
 authors: [ xXGunner989Xx ]
-description: voting plugin for retro mc b1.7.3
+description: A weather voting plugin for Minecraft Beta 1.7.3 designed for Project Poseidon w/ Fundamentals
 commands:
   vote:
-    description: Allows user to vote on various minecraft servers for a reward
-    permissions:
-      description: Allows yoy to use command /vote
-      default: true
-    permission-message: You do not have permission to use this command.
-    usage: "Usage: /vote"
+    description: a vote command to change weather or time
+    usage: "/<command> <arg>"
