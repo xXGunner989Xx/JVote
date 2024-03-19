@@ -1,0 +1,14 @@
+name: JVote
+version: ${project.version}
+main: com.wkaye.jvote.JVote
+api-version: 1.0
+authors: [ xXGunner989Xx ]
+description: voting plugin for retro mc b1.7.3
+commands:
+  vote:
+    description: Allows user to vote on various minecraft servers for a reward
+    permissions:
+      description: Allows yoy to use command /vote
+      default: true
+    permission-message: You do not have permission to use this command.
+    usage: "Usage: /vote"
