@@ -10,21 +10,26 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
-// TODO: implement 1-day cooldown
+// TODO: implement 1-day cool down
 // TODO: implement string config and permissions config
 public class JVoteCommand implements CommandExecutor {
     private final JVote plugin;
     // need thread safety for this variable so that two players cant start a vote at the same time
     AtomicBoolean voteStarted;
     AtomicBoolean isVoteTimePassed;
+    AtomicInteger countdownTaskId;
+
+    // enum: task ID mapping for cancelling task
+    ConcurrentHashMap<JVoteEnums, Integer> isOnCooldown;
     AtomicInteger totalVotes;
     HashSet<Player> playerHasVoted;
-    // this will be the world where the vote is initiated
     JVoteEnums currentVoteType;
+    // world where the vote is initiated
     private World world;
 
     public JVoteCommand(JVote plugin) {
@@ -34,6 +39,8 @@ public class JVoteCommand implements CommandExecutor {
         isVoteTimePassed = new AtomicBoolean(false);
         totalVotes = new AtomicInteger(0);
         playerHasVoted = new HashSet<>();
+        isOnCooldown = new ConcurrentHashMap<>();
+        countdownTaskId = new AtomicInteger();
     }
 
 
@@ -76,9 +83,16 @@ public class JVoteCommand implements CommandExecutor {
 
         }
         if (!voteStarted.get()) {
-            // TODO: fetch these from some config file. For now, only day/night and clear/storm
-            // invalid usage, return false
             try {
+                // this line to trigger exception if not valid
+                JVoteEnums.valueOf(args[0].toUpperCase());
+                if (isOnCooldown.containsKey(JVoteEnums.valueOf(args[0].toUpperCase()))) {
+                    // this vote is on a cool down still
+                    sender.sendMessage(JVoteUtils.printMessage("This vote is on cool down."));
+                    return true;
+                }
+                // TODO: fetch these from some config file. For now, only day/night and clear/storm
+                // invalid usage, return false
                 currentVoteType = JVoteEnums.valueOf(args[0].toUpperCase());
                 String msg = JVoteUtils.printMessage(
                         "A vote for "
@@ -90,7 +104,7 @@ public class JVoteCommand implements CommandExecutor {
                 if (checkVote("yes", player)) {
                     doVote();
                 } else {
-                    doVoteTimer(currentVoteType);
+                    doVoteTimer();
                 }
 
             } catch (IllegalArgumentException e) {
@@ -141,36 +155,45 @@ public class JVoteCommand implements CommandExecutor {
                 case NIGHT:
                     world.setTime(TimeTickConverter.hoursMinutesToTicks(19, 0));
                 case CLEAR:
-                    world.setStorm(false);
+                    if (world.hasStorm() || world.isThundering()) {
+                        world.setThundering(false);
+                        world.setWeatherDuration(20);
+                    }
                 case STORMY:
-                    world.setStorm(true);
+                    if (!world.hasStorm() && !world.isThundering()) {
+                        world.setWeatherDuration(20);
+                    }
                 default:
                     plugin.logger(Level.WARNING, "Not implemented yet");
             }
             plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Vote passed."));
-            Bukkit.getScheduler().cancelTasks(plugin);
-            resetValues();
+            Bukkit.getScheduler().cancelTask(countdownTaskId.get());
+            resetValues(currentVoteType);
         }
     }
 
-    private void resetValues() {
-        plugin.logger(Level.INFO, "Resetting values after vote ended");
+    private void resetValues(JVoteEnums cmd) {
+        plugin.logger(Level.INFO, "Resetting values after vote ended and adding cool down");
         voteStarted.set(false);
         totalVotes.set(0);
         isVoteTimePassed.set(false);
         currentVoteType = null;
         playerHasVoted.clear();
+        isOnCooldown.putIfAbsent(cmd, 0);
+        Bukkit.getScheduler().scheduleAsyncDelayedTask(plugin, () -> isOnCooldown.remove(cmd),
+                TimeTickConverter.ticksPerDay);
     }
 
     // this function will handle the timer and check that the vote has passed at 1s intervals
-    private void doVoteTimer(JVoteEnums cmd) {
+    private void doVoteTimer() {
         if (!voteStarted.get()) {
             AtomicInteger count = new AtomicInteger(30);
             voteStarted.set(true);
-            Bukkit.getScheduler().scheduleAsyncRepeatingTask(plugin, () -> {
+            countdownTaskId.set(Bukkit.getScheduler().scheduleAsyncRepeatingTask(plugin, () -> {
                 int curr = count.getAndDecrement();
                 if (curr == 0) {
                     plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Voting has ended."));
+                    resetValues(currentVoteType);
                 } else {
                     if (curr == 30 || curr == 20 || curr == 10 || curr == 5) {
                         plugin.getServer().broadcastMessage(JVoteUtils.printMessage(curr + " seconds remaining"));
@@ -179,9 +202,10 @@ public class JVoteCommand implements CommandExecutor {
                 if (checkVote()) {
                     doVote();
                     plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Vote passed."));
-                    Bukkit.getScheduler().cancelTasks(plugin);
+                    Bukkit.getScheduler().cancelTask(countdownTaskId.get());
                 }
-            }, 20, 20);
+            }, 20, 20));
+            plugin.logger(Level.INFO, "Scheduled task with ID: " + countdownTaskId.get());
         } else {
             plugin.logger(Level.INFO, "Vote already in progress");
         }
