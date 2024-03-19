@@ -9,7 +9,6 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,19 +17,20 @@ import java.util.logging.Level;
 public class JVoteCommand implements CommandExecutor {
     private final JVote plugin;
     // need thread safety for this variable so that two players cant start a vote at the same time
-    private final AtomicBoolean voteStarted;
-    private final AtomicBoolean isVoteTimePassed;
-    private final AtomicInteger totalVotes;
-    private final HashSet<Player> playerHasVoted;
+    AtomicBoolean voteStarted;
+    AtomicBoolean isVoteTimePassed;
+    AtomicInteger totalVotes;
+    HashSet<Player> playerHasVoted;
     // this will be the world where the vote is initiated
-    private JVoteEnums currentVoteType;
+    JVoteEnums currentVoteType;
     private World world;
 
     public JVoteCommand(JVote plugin) {
+        System.out.println("plugin instance created");
         this.plugin = plugin;
         voteStarted = new AtomicBoolean(false);
-        totalVotes = new AtomicInteger(0);
         isVoteTimePassed = new AtomicBoolean(false);
+        totalVotes = new AtomicInteger(0);
         playerHasVoted = new HashSet<>();
     }
 
@@ -46,8 +46,6 @@ public class JVoteCommand implements CommandExecutor {
       */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        plugin.logger(Level.INFO, Arrays.toString(args));
-        plugin.logger(Level.INFO, String.valueOf(args.length));
         // there should be two types of votes: one where the vote is initiated, and one where the vote is yes/no
         if (args.length != 1) {
             // invalid usage (should be /vote {type of vote}
@@ -67,10 +65,9 @@ public class JVoteCommand implements CommandExecutor {
                 plugin.logger(Level.WARNING, "Attempted /vote after vote started with improper args");
                 return true;
             }
-            if (checkAndDoVote(args[0], player)) {
+            if (checkVote(args[0], player)) {
                 // vote passed, perform change and reset values
-
-                resetValues();
+                doVote();
                 return true;
             }
 
@@ -80,14 +77,17 @@ public class JVoteCommand implements CommandExecutor {
             // invalid usage, return false
             try {
                 currentVoteType = JVoteEnums.valueOf(args[0].toUpperCase());
-                String sb = Utils.formatColor("&7[&bJVote&7] A vote for ") +
-                        Utils.formatColor(currentVoteType.color()) +
-                        Utils.formatColor(currentVoteType.toString().toLowerCase()) +
-                        Utils.formatColor("&7 has started");
-                plugin.getServer().broadcastMessage(sb);
+                String msg = JVoteUtils.printMessage(
+                        "A vote for "
+                                + Utils.formatColor(currentVoteType.color())
+                                + Utils.formatColor(currentVoteType.toString().toLowerCase())
+                                + Utils.formatColor("&7 has started"));
+                plugin.getServer().broadcastMessage(msg);
                 world = player.getWorld();
-                if (checkAndDoVote("yes", player)) {
-                    resetValues();
+                if (checkVote("yes", player)) {
+                    doVote();
+                } else {
+                    doVoteTimer(currentVoteType);
                 }
 
             } catch (IllegalArgumentException e) {
@@ -100,28 +100,35 @@ public class JVoteCommand implements CommandExecutor {
         return true;
     }
 
-    private boolean checkAndDoVote(String arg, Player player) {
-        double currentVotePercentage;
+    private boolean checkVote(String arg, Player player) {
+        double currentVotePercentage = 0;
         if (playerHasVoted.contains(player)) {
             // send message to player that he/she already voted and return
-            String msg = "&7[&bJVote&7] You have already voted.";
+            String msg = "[JVote] You have already voted.";
             player.sendMessage(msg);
             return false;
         }
+        player.sendMessage("[JVote] You have voted.");
+        playerHasVoted.add(player);
         if (arg.equalsIgnoreCase("yes")) {
             currentVotePercentage = (double) totalVotes.incrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
-            if (currentVotePercentage < 0.5) {
-                return false;
-            }
-        } else {
+        } else if (arg.equalsIgnoreCase("no")) {
             totalVotes.decrementAndGet();
-            return false;
         }
-        // vote passed, do stuff
+        return currentVotePercentage >= 0.5;
+    }
+
+    private boolean checkVote() {
+        double currentVotePercentage;
+        currentVotePercentage = (double) totalVotes.get()
+                / Bukkit.getServer().getOnlinePlayers().length;
+        return currentVotePercentage >= 0.5;
+    }
+
+    private void doVote() {
         if (currentVoteType == null) {
             plugin.logger(Level.SEVERE, "Unexpected error when getting vote type");
-            return false;
         } else {
             switch (currentVoteType) {
                 case DAY:
@@ -131,13 +138,14 @@ public class JVoteCommand implements CommandExecutor {
                 default:
                     plugin.logger(Level.WARNING, "Not implemented yet");
             }
-            player.sendMessage("&7[&bJVote&7] You have voted.");
-            playerHasVoted.add(player);
-            return true;
+            plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Vote passed."));
+            Bukkit.getScheduler().cancelTasks(plugin);
+            resetValues();
         }
     }
 
     private void resetValues() {
+        plugin.logger(Level.INFO, "Resetting values after vote ended");
         voteStarted.set(false);
         totalVotes.set(0);
         isVoteTimePassed.set(false);
@@ -146,7 +154,28 @@ public class JVoteCommand implements CommandExecutor {
     }
 
     // this function will handle the timer and check that the vote has passed.
+    // TODO: check player counts / voting percentage.
     private void doVoteTimer(JVoteEnums cmd) {
-
+        if (!voteStarted.get()) {
+            AtomicInteger count = new AtomicInteger(30);
+            voteStarted.set(true);
+            Bukkit.getScheduler().scheduleAsyncRepeatingTask(plugin, () -> {
+                int curr = count.getAndDecrement();
+                if (curr == 0) {
+                    plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Voting has ended."));
+                } else {
+                    if (curr == 30 || curr == 20 || curr == 10 || curr == 5) {
+                        plugin.getServer().broadcastMessage(JVoteUtils.printMessage(curr + " seconds remaining"));
+                    }
+                }
+                if (checkVote()) {
+                    doVote();
+                    plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Vote passed."));
+                    Bukkit.getScheduler().cancelTasks(plugin);
+                }
+            }, 20, 20);
+        } else {
+            plugin.logger(Level.INFO, "Vote already in progress");
+        }
     }
 }
