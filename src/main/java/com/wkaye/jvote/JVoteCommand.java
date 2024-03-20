@@ -132,6 +132,7 @@ public class JVoteCommand implements CommandExecutor {
                     / Bukkit.getServer().getOnlinePlayers().length;
         } else if (arg.equalsIgnoreCase("no")) {
             plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Someone has voted no!"));
+            Bukkit.getScheduler().cancelTask(countdownTaskId.get());
             resetValues(currentVoteType);
         }
         return currentVotePercentage >= 0.5;
