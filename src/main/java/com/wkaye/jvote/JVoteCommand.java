@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
-// TODO: implement 1-day cool down
 // TODO: implement string config and permissions config
 public class JVoteCommand implements CommandExecutor {
     private final JVote plugin;
@@ -71,7 +70,7 @@ public class JVoteCommand implements CommandExecutor {
             // vote started, check that the user actually supplied a yes or no vote
             if (!(args[0].equalsIgnoreCase("yes") || args[0].equalsIgnoreCase("no"))) {
                 // invalid usage, return false
-                player.sendMessage("[JVote] A vote is already in progress.");
+                sender.sendMessage(JVoteUtils.printMessage("vote is already in progress"));
                 plugin.logger(Level.WARNING, "Attempted /vote after vote started with improper args");
                 return true;
             }
@@ -88,7 +87,7 @@ public class JVoteCommand implements CommandExecutor {
                 JVoteEnums.valueOf(args[0].toUpperCase());
                 if (isOnCooldown.containsKey(JVoteEnums.valueOf(args[0].toUpperCase()))) {
                     // this vote is on a cool down still
-                    sender.sendMessage(JVoteUtils.printMessage("This vote is on cool down."));
+                    sender.sendMessage(JVoteUtils.printMessage("This vote is on cool down"));
                     return true;
                 }
                 // TODO: fetch these from some config file. For now, only day/night and clear/storm
@@ -117,22 +116,23 @@ public class JVoteCommand implements CommandExecutor {
         return true;
     }
 
-    private boolean checkVote(String arg, Player player) {
+    private boolean checkVote(String arg, CommandSender sender) {
+        Player player = (Player) sender;
         double currentVotePercentage = 0;
         if (playerHasVoted.contains(player)) {
             // send message to player that he/she already voted and return
-            String msg = "[JVote] You have already voted.";
-            player.sendMessage(msg);
+            String msg = JVoteUtils.printMessage("You have already voted");
+            sender.sendMessage(msg);
             return false;
         }
-        player.sendMessage("[JVote] You have voted.");
+        sender.sendMessage(JVoteUtils.printMessage("You have voted"));
         playerHasVoted.add(player);
         if (arg.equalsIgnoreCase("yes")) {
             currentVotePercentage = (double) totalVotes.incrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
         } else if (arg.equalsIgnoreCase("no")) {
             plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Someone has voted no!"));
-            totalVotes.decrementAndGet();
+            resetValues(currentVoteType);
         }
         return currentVotePercentage >= 0.5;
     }
@@ -166,7 +166,7 @@ public class JVoteCommand implements CommandExecutor {
                 default:
                     plugin.logger(Level.WARNING, "Not implemented yet");
             }
-            plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Vote passed."));
+            plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Vote passed"));
             Bukkit.getScheduler().cancelTask(countdownTaskId.get());
             resetValues(currentVoteType);
         }
@@ -185,14 +185,16 @@ public class JVoteCommand implements CommandExecutor {
     }
 
     // this function will handle the timer and check that the vote has passed at 1s intervals
+    // TODO: vote time should be a config value
+    // TODO: reminder times should be a config value [30, 20, 10, 5] <- example
     private void doVoteTimer() {
         if (!voteStarted.get()) {
-            AtomicInteger count = new AtomicInteger(30);
+            AtomicInteger count = new AtomicInteger(60);
             voteStarted.set(true);
             countdownTaskId.set(Bukkit.getScheduler().scheduleAsyncRepeatingTask(plugin, () -> {
                 int curr = count.getAndDecrement();
                 if (curr == 0) {
-                    plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Voting has ended."));
+                    plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Voting has ended"));
                     resetValues(currentVoteType);
                 } else {
                     if (curr == 30 || curr == 20 || curr == 10 || curr == 5) {
@@ -201,7 +203,7 @@ public class JVoteCommand implements CommandExecutor {
                 }
                 if (checkVote()) {
                     doVote();
-                    plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Vote passed."));
+                    plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Vote passed"));
                     Bukkit.getScheduler().cancelTask(countdownTaskId.get());
                 }
             }, 20, 20));
