@@ -38,6 +38,12 @@ jobs:
         with:
           maven-version: 3.9.1
 
+      - name: Extract version from plugin.yml
+        id: version
+        run: |
+          VERSION=$(grep 'version: ' plugin.yml | cut -d ' ' -f 2)
+          echo "::set-output name=$VERSION"
+
       - name: build application
         shell: bash
         run: |
@@ -46,5 +52,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: JTest
+          name: JTest-${{ steps.version.outputs.version }}
           path: target/*.jar
