@@ -56,6 +56,8 @@ public class JVoteCommand implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         // there should be two types of votes: one where the vote is initiated, and one where the vote is yes/no
         if (args.length != 1) {
+            String msg = JVoteUtils.printMessage("Proper usage is &a/vote <day/night/storm/clear>");
+            sender.sendMessage(msg);
             // invalid usage (should be /vote {type of vote}
             plugin.logger(Level.WARNING, "Attempted /vote with invalid number of args");
             return true;
@@ -70,7 +72,7 @@ public class JVoteCommand implements CommandExecutor {
             // vote started, check that the user actually supplied a yes or no vote
             if (!(args[0].equalsIgnoreCase("yes") || args[0].equalsIgnoreCase("no"))) {
                 // invalid usage, return false
-                sender.sendMessage(JVoteUtils.printMessage("vote is already in progress"));
+                sender.sendMessage(JVoteUtils.printMessage("A vote is already in progress"));
                 plugin.logger(Level.WARNING, "Attempted /vote after vote started with improper args");
                 return true;
             }
@@ -97,7 +99,7 @@ public class JVoteCommand implements CommandExecutor {
                         "A vote for "
                                 + Utils.formatColor(currentVoteType.color())
                                 + Utils.formatColor(currentVoteType.toString().toLowerCase())
-                                + Utils.formatColor("&7 has started"));
+                                + Utils.formatColor("&7 has started. Vote by doing &a/vote <yes/no>"));
                 plugin.getServer().broadcastMessage(msg);
                 world = player.getWorld();
                 if (checkVote("yes", player)) {
@@ -107,6 +109,8 @@ public class JVoteCommand implements CommandExecutor {
                 }
 
             } catch (IllegalArgumentException e) {
+                String msg = JVoteUtils.printMessage("Proper usage is &a/vote <day/night/storm/clear>");
+                sender.sendMessage(msg);
                 plugin.logger(Level.WARNING, "Attempted to start /vote with improper argument");
                 return true;
             }
@@ -132,17 +136,17 @@ public class JVoteCommand implements CommandExecutor {
                     / Bukkit.getServer().getOnlinePlayers().length;
         } else if (arg.equalsIgnoreCase("no")) {
             plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Someone has voted no!"));
-            Bukkit.getScheduler().cancelTask(countdownTaskId.get());
-            resetValues(currentVoteType);
+            currentVotePercentage = (double) totalVotes.decrementAndGet()
+                    / Bukkit.getServer().getOnlinePlayers().length;
         }
-        return currentVotePercentage >= 0.5;
+        return currentVotePercentage > 0.5;
     }
 
     private boolean checkVote() {
         double currentVotePercentage;
         currentVotePercentage = (double) totalVotes.get()
                 / Bukkit.getServer().getOnlinePlayers().length;
-        return currentVotePercentage >= 0.5;
+        return currentVotePercentage > 0.5;
     }
 
     private void doVote() {
@@ -151,18 +155,18 @@ public class JVoteCommand implements CommandExecutor {
         } else {
             switch (currentVoteType) {
                 case DAY:
-                    world.setTime(TimeTickConverter.hoursMinutesToTicks(6, 0));
+                    world.setTime(TimeTickConverter.nameToTicks.get("daystart"));
                     break;
                 case NIGHT:
-                    world.setTime(TimeTickConverter.hoursMinutesToTicks(19, 0));
+                    world.setTime(TimeTickConverter.nameToTicks.get("nightstart"));
                 case CLEAR:
-                    if (world.hasStorm() || world.isThundering()) {
+                    if (world.hasStorm()) {
                         world.setThundering(false);
-                        world.setWeatherDuration(20);
+                        world.setWeatherDuration(5);
                     }
-                case STORMY:
-                    if (!world.hasStorm() && !world.isThundering()) {
-                        world.setWeatherDuration(20);
+                case STORM:
+                    if (!world.hasStorm()) {
+                        world.setWeatherDuration(5);
                     }
                 default:
                     plugin.logger(Level.WARNING, "Not implemented yet");
@@ -181,8 +185,10 @@ public class JVoteCommand implements CommandExecutor {
         currentVoteType = null;
         playerHasVoted.clear();
         isOnCooldown.putIfAbsent(cmd, 0);
+        // setting half day cooldown
+        // TODO: make this a config value
         Bukkit.getScheduler().scheduleAsyncDelayedTask(plugin, () -> isOnCooldown.remove(cmd),
-                TimeTickConverter.ticksPerDay);
+                TimeTickConverter.ticksPerDay / 2);
     }
 
     // this function will handle the timer and check that the vote has passed at 1s intervals
@@ -204,7 +210,6 @@ public class JVoteCommand implements CommandExecutor {
                 }
                 if (checkVote()) {
                     doVote();
-                    plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Vote passed"));
                     Bukkit.getScheduler().cancelTask(countdownTaskId.get());
                 }
             }, 20, 20));

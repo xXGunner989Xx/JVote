@@ -19,7 +19,7 @@ public enum JVoteEnums {
             return Utils.formatColor("&f");
         }
     },
-    STORMY {
+    STORM {
         public String color() {
             return Utils.formatColor("&9");
         }
