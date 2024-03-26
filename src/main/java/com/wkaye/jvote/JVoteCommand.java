@@ -9,6 +9,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -194,17 +195,22 @@ public class JVoteCommand implements CommandExecutor {
     // this function will handle the timer and check that the vote has passed at 1s intervals
     // TODO: vote time should be a config value
     // TODO: reminder times should be a config value [30, 20, 10, 5] <- example
+    @SuppressWarnings("unchecked")
     private void doVoteTimer() {
         if (!voteStarted.get()) {
-            AtomicInteger count = new AtomicInteger(60);
+            AtomicInteger count = new AtomicInteger(JVoteConfig.getInstance().getConfigInteger("settings.timer-length"));
             voteStarted.set(true);
             countdownTaskId.set(Bukkit.getScheduler().scheduleAsyncRepeatingTask(plugin, () -> {
                 int curr = count.getAndDecrement();
                 if (curr == 0) {
                     plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Voting has ended"));
+                    Bukkit.getScheduler().cancelTask(countdownTaskId.get());
                     resetValues(currentVoteType);
                 } else {
-                    if (curr == 30 || curr == 20 || curr == 10 || curr == 5) {
+                    ArrayList<Integer> frequencies = (ArrayList<Integer>)
+                            JVoteConfig.getInstance().getConfigOption("settings.reminder-frequency");
+                    if (JVoteConfig.getInstance().getConfigBoolean("settings.toggle-timer") &&
+                            frequencies.contains(curr)) {
                         plugin.getServer().broadcastMessage(JVoteUtils.printMessage(curr + " seconds remaining"));
                     }
                 }

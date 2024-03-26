@@ -18,6 +18,7 @@ public class JVote extends JavaPlugin implements Listener {
     public void onEnable() {
         plugin = this;
         log = this.getServer().getLogger();
+        JVoteConfig.getInstance(plugin);
         Bukkit.getPluginCommand("vote").setExecutor(new JVoteCommand(plugin));
         pdf = this.getDescription();
         pluginName = pdf.getName();
