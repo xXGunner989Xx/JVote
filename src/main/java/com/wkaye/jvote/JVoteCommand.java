@@ -200,7 +200,7 @@ public class JVoteCommand implements CommandExecutor {
         if (!voteStarted.get()) {
             AtomicInteger count = new AtomicInteger(JVoteConfig.getInstance().getConfigInteger("settings.timer-length"));
             voteStarted.set(true);
-            countdownTaskId.set(Bukkit.getScheduler().scheduleAsyncRepeatingTask(plugin, () -> {
+            countdownTaskId.set(Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, () -> {
                 int curr = count.getAndDecrement();
                 if (curr == 0) {
                     plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Voting has ended"));
