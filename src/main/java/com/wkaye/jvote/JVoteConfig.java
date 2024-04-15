@@ -1,5 +1,6 @@
 package com.wkaye.jvote;
 
+import com.johnymuffin.beta.fundamentals.util.TimeTickConverter;
 import org.bukkit.util.config.Configuration;
 
 import java.io.File;
@@ -32,8 +33,9 @@ public class JVoteConfig extends Configuration {
         generateConfigOption("config-version", 1);
         generateConfigOption("settings.toggle-timer", true);
         generateConfigOption("settings.timer-length", 60);
-        generateConfigOption("settings.reminder-frequency", new ArrayList<>(Arrays.asList(60, 30, 20, 10, 5)));
+        generateConfigOption("settings.reminder-frequency", new ArrayList<>(Arrays.asList(60, 30, 5)));
         generateConfigOption("settings.debug-level", 0);
+        generateConfigOption("settings.cooldown-timer-ticks", TimeTickConverter.ticksPerDay / 2);
     }
 
     private void reload() {

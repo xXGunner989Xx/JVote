@@ -123,31 +123,24 @@ public class JVoteCommand implements CommandExecutor {
 
     private boolean checkVote(String arg, CommandSender sender) {
         Player player = (Player) sender;
-        double currentVotePercentage = 0;
         if (playerHasVoted.contains(player)) {
             // send message to player that he/she already voted and return
             String msg = JVoteUtils.printMessage("You have already voted");
             sender.sendMessage(msg);
             return false;
         }
+        if ("yes".contains(arg.toLowerCase())) {
+            totalVotes.incrementAndGet();
+        } else if ("no".contains(arg.toLowerCase())) {
+            totalVotes.decrementAndGet();
+        }
         sender.sendMessage(JVoteUtils.printMessage("You have voted"));
         playerHasVoted.add(player);
-        if ("yes".contains(arg.toLowerCase())) {
-            currentVotePercentage = (double) totalVotes.incrementAndGet()
-                    / Bukkit.getServer().getOnlinePlayers().length;
-        } else if ("no".contains(arg.toLowerCase())) {
-            plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Someone has voted no!"));
-            currentVotePercentage = (double) totalVotes.decrementAndGet()
-                    / Bukkit.getServer().getOnlinePlayers().length;
-        }
-        return currentVotePercentage > 0.5;
+        return totalVotes.get() > 0;
     }
 
     private boolean checkVote() {
-        double currentVotePercentage;
-        currentVotePercentage = (double) totalVotes.get()
-                / Bukkit.getServer().getOnlinePlayers().length;
-        return currentVotePercentage > 0.5;
+        return totalVotes.get() > 0;
     }
 
     private void doVote() {
@@ -189,16 +182,23 @@ public class JVoteCommand implements CommandExecutor {
         isVoteTimePassed.set(false);
         currentVoteType = null;
         playerHasVoted.clear();
-        isOnCooldown.putIfAbsent(cmd, 0);
-        // setting half day cooldown
-        // TODO: make this a config value
-        Bukkit.getScheduler().scheduleAsyncDelayedTask(plugin, () -> isOnCooldown.remove(cmd),
-                TimeTickConverter.ticksPerDay / 2);
+        int cooldownTimer = JVoteConfig.getInstance().getConfigInteger("settings.cooldown-timer-ticks");
+        if (cmd.equals(JVoteEnums.CLEAR) || cmd.equals(JVoteEnums.SUN)) {
+            isOnCooldown.putIfAbsent(JVoteEnums.SUN, 0);
+            isOnCooldown.putIfAbsent(JVoteEnums.CLEAR, 0);
+            Bukkit.getScheduler().scheduleAsyncDelayedTask(plugin, () -> {
+                isOnCooldown.remove(JVoteEnums.CLEAR);
+                isOnCooldown.remove(JVoteEnums.SUN);
+                }, cooldownTimer
+            );
+        } else {
+            isOnCooldown.putIfAbsent(cmd, 0);
+            Bukkit.getScheduler().scheduleAsyncDelayedTask(plugin, () -> isOnCooldown.remove(cmd),
+                    cooldownTimer);
+        }
     }
 
     // this function will handle the timer and check that the vote has passed at 1s intervals
-    // TODO: vote time should be a config value
-    // TODO: reminder times should be a config value [30, 20, 10, 5] <- example
     @SuppressWarnings("unchecked")
     private void doVoteTimer() {
         if (!voteStarted.get()) {
