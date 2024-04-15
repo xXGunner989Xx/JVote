@@ -160,15 +160,19 @@ public class JVoteCommand implements CommandExecutor {
                     break;
                 case NIGHT:
                     world.setTime(TimeTickConverter.nameToTicks.get("nightstart"));
+                    break;
+                case SUN:
                 case CLEAR:
                     if (world.hasStorm()) {
                         world.setThundering(false);
                         world.setWeatherDuration(5);
                     }
+                    break;
                 case STORM:
                     if (!world.hasStorm()) {
                         world.setWeatherDuration(5);
                     }
+                    break;
                 default:
                     plugin.logger(Level.WARNING, "Not implemented yet");
             }

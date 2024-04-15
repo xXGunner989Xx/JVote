@@ -19,6 +19,11 @@ public enum JVoteEnums {
             return Utils.formatColor("&f");
         }
     },
+    SUN {
+        public String color() {
+            return Utils.formatColor("&f");
+        }
+    },
     STORM {
         public String color() {
             return Utils.formatColor("&9");
