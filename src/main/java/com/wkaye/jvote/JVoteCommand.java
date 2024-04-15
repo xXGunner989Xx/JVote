@@ -132,10 +132,10 @@ public class JVoteCommand implements CommandExecutor {
         }
         sender.sendMessage(JVoteUtils.printMessage("You have voted"));
         playerHasVoted.add(player);
-        if (arg.equalsIgnoreCase("yes")) {
+        if ("yes".contains(arg.toLowerCase())) {
             currentVotePercentage = (double) totalVotes.incrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
-        } else if (arg.equalsIgnoreCase("no")) {
+        } else if ("no".contains(arg.toLowerCase())) {
             plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Someone has voted no!"));
             currentVotePercentage = (double) totalVotes.decrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
