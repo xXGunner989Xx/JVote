@@ -123,20 +123,24 @@ public class JVoteCommand implements CommandExecutor {
 
     private boolean checkVote(String arg, CommandSender sender) {
         Player player = (Player) sender;
+        double currentVotePercentage = 0;
         if (playerHasVoted.contains(player)) {
             // send message to player that he/she already voted and return
             String msg = JVoteUtils.printMessage("You have already voted");
             sender.sendMessage(msg);
             return false;
         }
-        if ("yes".contains(arg.toLowerCase())) {
-            totalVotes.incrementAndGet();
-        } else if ("no".contains(arg.toLowerCase())) {
-            totalVotes.decrementAndGet();
-        }
         sender.sendMessage(JVoteUtils.printMessage("You have voted"));
         playerHasVoted.add(player);
-        return checkVote();
+        if ("yes".contains(arg.toLowerCase())) {
+            currentVotePercentage = (double) totalVotes.incrementAndGet()
+                    / Bukkit.getServer().getOnlinePlayers().length;
+        } else if ("no".contains(arg.toLowerCase())) {
+            plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Someone has voted no!"));
+            currentVotePercentage = (double) totalVotes.decrementAndGet()
+                    / Bukkit.getServer().getOnlinePlayers().length;
+        }
+        return currentVotePercentage > 0.5;
     }
 
     private boolean checkVote() {
@@ -144,7 +148,7 @@ public class JVoteCommand implements CommandExecutor {
         if (plugin.getDebugLevel() > 0) {
             plugin.logger(Level.INFO, "total votes: " + votes);
         }
-        return votes > 0;
+        return totalVotes.get() > 0;
     }
 
     private void doVote() {
