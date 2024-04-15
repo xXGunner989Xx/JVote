@@ -136,11 +136,15 @@ public class JVoteCommand implements CommandExecutor {
         }
         sender.sendMessage(JVoteUtils.printMessage("You have voted"));
         playerHasVoted.add(player);
-        return totalVotes.get() > 0;
+        return checkVote();
     }
 
     private boolean checkVote() {
-        return totalVotes.get() > 0;
+        int votes = totalVotes.get();
+        if (plugin.getDebugLevel() > 0) {
+            plugin.logger(Level.INFO, "total votes: " + votes);
+        }
+        return votes > 0;
     }
 
     private void doVote() {

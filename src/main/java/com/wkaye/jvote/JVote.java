@@ -13,6 +13,7 @@ public class JVote extends JavaPlugin implements Listener {
     private Logger log;
     private String pluginName;
     private PluginDescriptionFile pdf;
+    private int debugLevel;
 
     @Override
     public void onEnable() {
@@ -23,6 +24,7 @@ public class JVote extends JavaPlugin implements Listener {
         pdf = this.getDescription();
         pluginName = pdf.getName();
         log.info("[" + pluginName + "] Is Loading, Version: " + pdf.getVersion());
+        debugLevel = JVoteConfig.getInstance().getConfigInteger("settings.debug-level");
     }
 
     @Override
@@ -32,5 +34,9 @@ public class JVote extends JavaPlugin implements Listener {
 
     public void logger(Level level, String message) {
         Bukkit.getLogger().log(level, "[" + pluginName + "] " + message);
+    }
+
+    public int getDebugLevel() {
+        return debugLevel;
     }
 }
