@@ -71,7 +71,7 @@ public class JVoteCommand implements CommandExecutor {
         Player player = (Player) sender;
         if (voteStarted.get()) {
             // vote started, check that the user actually supplied a yes or no vote
-            if (!(args[0].equalsIgnoreCase("yes") || args[0].equalsIgnoreCase("no"))) {
+            if (!("yes".contains(args[0].toLowerCase()) || "no".contains(args[0].toLowerCase()))) {
                 // invalid usage, return false
                 sender.sendMessage(JVoteUtils.printMessage("A vote is already in progress"));
                 plugin.logger(Level.WARNING, "Attempted /vote after vote started with improper args");
@@ -140,15 +140,19 @@ public class JVoteCommand implements CommandExecutor {
             currentVotePercentage = (double) totalVotes.decrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
         }
+        if (plugin.getDebugLevel() > 0) {
+            plugin.logger(Level.INFO, "voting percentage at: " + currentVotePercentage);
+        }
         return currentVotePercentage > 0.5;
     }
 
     private boolean checkVote() {
-        int votes = totalVotes.get();
+        double currentVotePercentage = (double) totalVotes.get()
+                / Bukkit.getServer().getOnlinePlayers().length;
         if (plugin.getDebugLevel() > 0) {
-            plugin.logger(Level.INFO, "total votes: " + votes);
+            plugin.logger(Level.INFO, "voting percentage at: " + currentVotePercentage);
         }
-        return totalVotes.get() > 0;
+        return currentVotePercentage > 0.5;
     }
 
     private void doVote() {
@@ -195,9 +199,9 @@ public class JVoteCommand implements CommandExecutor {
             isOnCooldown.putIfAbsent(JVoteEnums.SUN, 0);
             isOnCooldown.putIfAbsent(JVoteEnums.CLEAR, 0);
             Bukkit.getScheduler().scheduleAsyncDelayedTask(plugin, () -> {
-                isOnCooldown.remove(JVoteEnums.CLEAR);
-                isOnCooldown.remove(JVoteEnums.SUN);
-                }, cooldownTimer
+                        isOnCooldown.remove(JVoteEnums.CLEAR);
+                        isOnCooldown.remove(JVoteEnums.SUN);
+                    }, cooldownTimer
             );
         } else {
             isOnCooldown.putIfAbsent(cmd, 0);
@@ -215,9 +219,13 @@ public class JVoteCommand implements CommandExecutor {
             countdownTaskId.set(Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, () -> {
                 int curr = count.getAndDecrement();
                 if (curr == 0) {
-                    plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Voting has ended"));
-                    Bukkit.getScheduler().cancelTask(countdownTaskId.get());
-                    resetValues(currentVoteType);
+                    if (totalVotes.get() > 0) {
+                        doVote();
+                    } else {
+                        plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Voting has ended"));
+                        Bukkit.getScheduler().cancelTask(countdownTaskId.get());
+                        resetValues(currentVoteType);
+                    }
                 } else {
                     ArrayList<Integer> frequencies = (ArrayList<Integer>)
                             JVoteConfig.getInstance().getConfigOption("settings.reminder-frequency");
