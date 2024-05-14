@@ -1,32 +1,30 @@
 package com.wkaye.jvote;
 
-import com.johnymuffin.beta.fundamentals.util.Utils;
-
 public enum JVoteEnums {
     DAY {
         public String color() {
-            return Utils.formatColor("&e");
+            return JVoteUtils.formatColor("&e");
         }
 
     },
     NIGHT {
         public String color() {
-            return Utils.formatColor("&8");
+            return JVoteUtils.formatColor("&8");
         }
     },
     CLEAR {
         public String color() {
-            return Utils.formatColor("&f");
+            return JVoteUtils.formatColor("&f");
         }
     },
     SUN {
         public String color() {
-            return Utils.formatColor("&f");
+            return JVoteUtils.formatColor("&f");
         }
     },
     STORM {
         public String color() {
-            return Utils.formatColor("&9");
+            return JVoteUtils.formatColor("&9");
         }
     };
 

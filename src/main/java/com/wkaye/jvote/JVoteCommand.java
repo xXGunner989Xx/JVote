@@ -1,7 +1,5 @@
 package com.wkaye.jvote;
 
-import com.johnymuffin.beta.fundamentals.util.TimeTickConverter;
-import com.johnymuffin.beta.fundamentals.util.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.command.Command;
@@ -98,9 +96,9 @@ public class JVoteCommand implements CommandExecutor {
                 currentVoteType = JVoteEnums.valueOf(args[0].toUpperCase());
                 String msg = JVoteUtils.printMessage(
                         "A vote for "
-                                + Utils.formatColor(currentVoteType.color())
-                                + Utils.formatColor(currentVoteType.toString().toLowerCase())
-                                + Utils.formatColor("&7 has started. Vote by doing &a/vote <yes/no>"));
+                                + JVoteUtils.formatColor(currentVoteType.color())
+                                + JVoteUtils.formatColor(currentVoteType.toString().toLowerCase())
+                                + JVoteUtils.formatColor("&7 has started. Vote by doing &a/vote <yes/no>"));
                 plugin.getServer().broadcastMessage(msg);
                 world = player.getWorld();
                 if (checkVote("yes", player)) {
@@ -136,7 +134,6 @@ public class JVoteCommand implements CommandExecutor {
             currentVotePercentage = (double) totalVotes.incrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
         } else if ("no".contains(arg.toLowerCase())) {
-            plugin.getServer().broadcastMessage(JVoteUtils.printMessage("Someone has voted no!"));
             currentVotePercentage = (double) totalVotes.decrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
         }
@@ -161,10 +158,10 @@ public class JVoteCommand implements CommandExecutor {
         } else {
             switch (currentVoteType) {
                 case DAY:
-                    world.setTime(TimeTickConverter.nameToTicks.get("daystart"));
+                    world.setTime(0);
                     break;
                 case NIGHT:
-                    world.setTime(TimeTickConverter.nameToTicks.get("nightstart"));
+                    world.setTime(14000);
                     break;
                 case SUN:
                 case CLEAR:
