@@ -27,8 +27,6 @@ public class JVoteCommand implements CommandExecutor {
     AtomicInteger totalVotes;
     HashSet<Player> playerHasVoted;
     JVoteEnums currentVoteType;
-    // world where the vote is initiated
-    private World world;
 
     public JVoteCommand(JVote plugin) {
         System.out.println("plugin instance created");
@@ -100,7 +98,6 @@ public class JVoteCommand implements CommandExecutor {
                                 + JVoteUtils.formatColor(currentVoteType.toString().toLowerCase())
                                 + JVoteUtils.formatColor("&7 has started. Vote by doing &a/vote <yes/no>"));
                 plugin.getServer().broadcastMessage(msg);
-                world = player.getWorld();
                 if (checkVote("yes", player)) {
                     doVote();
                 } else {
@@ -158,21 +155,29 @@ public class JVoteCommand implements CommandExecutor {
         } else {
             switch (currentVoteType) {
                 case DAY:
-                    world.setTime(0);
+                    for(World world : Bukkit.getWorlds()){
+                        world.setTime(0);
+                    }
                     break;
                 case NIGHT:
-                    world.setTime(14000);
+                    for(World world : Bukkit.getWorlds()){
+                        world.setTime(14000);
+                    }
                     break;
                 case SUN:
                 case CLEAR:
-                    if (world.hasStorm()) {
-                        world.setThundering(false);
-                        world.setWeatherDuration(5);
+                    for(World world : Bukkit.getWorlds()){
+                        if (world.hasStorm()) {
+                            world.setThundering(false);
+                            world.setWeatherDuration(5);
+                        }
                     }
                     break;
                 case STORM:
-                    if (!world.hasStorm()) {
-                        world.setWeatherDuration(5);
+                    for(World world : Bukkit.getWorlds()){
+                        if (!world.hasStorm()) {
+                            world.setWeatherDuration(5);
+                        }
                     }
                     break;
                 default:
