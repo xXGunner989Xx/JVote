@@ -8,7 +8,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,7 +25,7 @@ public class JVoteCommand implements CommandExecutor {
     // enum: task ID mapping for cancelling task
     ConcurrentHashMap<JVoteEnums, Integer> isOnCooldown;
     AtomicInteger totalVotes;
-    HashSet<Player> playerHasVoted;
+    HashMap<String, Player> playerHasVoted;
     JVoteEnums currentVoteType;
 
     public JVoteCommand(JVote plugin) {
@@ -34,7 +34,7 @@ public class JVoteCommand implements CommandExecutor {
         voteStarted = new AtomicBoolean(false);
         isVoteTimePassed = new AtomicBoolean(false);
         totalVotes = new AtomicInteger(0);
-        playerHasVoted = new HashSet<>();
+        playerHasVoted = new HashMap<>();
         isOnCooldown = new ConcurrentHashMap<>();
         countdownTaskId = new AtomicInteger();
     }
@@ -119,14 +119,35 @@ public class JVoteCommand implements CommandExecutor {
     private boolean checkVote(String arg, CommandSender sender) {
         Player player = (Player) sender;
         double currentVotePercentage = 0;
-        if (playerHasVoted.contains(player)) {
-            // send message to player that he/she already voted and return
-            String msg = JVoteUtils.printMessage("You have already voted");
-            sender.sendMessage(msg);
-            return false;
+        String hostname = player.getAddress().getHostName();
+        // check if a player has voted or if someone from same IP has voted (fixing vote cooldown bypassing)
+        if (playerHasVoted.containsKey(hostname)) {
+            if (playerHasVoted.get(hostname) == null) {
+                /*
+                this would be saying that the IP has been logged as a vote being logged but no list of players has
+                been created??
+
+                idk if its even possible for this case, someone feel free to correct this if it is. for now just
+                continuing
+                */
+            } else {
+                if (!playerHasVoted.get(hostname).equals(player)) {
+                    // another player is logged onto the same IP. probably using an alt. for now, restricting one vote
+                    // per ip
+                    plugin.logger(Level.WARNING, player.getName() + " has tried to vote from an IP that has " +
+                            "already logged a vote");
+                }
+                // player has voted, send message that he/she already voted and return
+                String msg = JVoteUtils.printMessage("You have already voted");
+                sender.sendMessage(msg);
+                return false;
+            }
+
         }
+        // player has not yet voted
         sender.sendMessage(JVoteUtils.printMessage("You have voted"));
-        playerHasVoted.add(player);
+        playerHasVoted.put(player.getAddress().getHostName(), player);
+        
         if ("yes".contains(arg.toLowerCase())) {
             currentVotePercentage = (double) totalVotes.incrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
@@ -155,18 +176,18 @@ public class JVoteCommand implements CommandExecutor {
         } else {
             switch (currentVoteType) {
                 case DAY:
-                    for(World world : Bukkit.getWorlds()){
+                    for (World world : Bukkit.getWorlds()) {
                         world.setTime(0);
                     }
                     break;
                 case NIGHT:
-                    for(World world : Bukkit.getWorlds()){
+                    for (World world : Bukkit.getWorlds()) {
                         world.setTime(14000);
                     }
                     break;
                 case SUN:
                 case CLEAR:
-                    for(World world : Bukkit.getWorlds()){
+                    for (World world : Bukkit.getWorlds()) {
                         if (world.hasStorm()) {
                             world.setThundering(false);
                             world.setWeatherDuration(5);
@@ -174,7 +195,7 @@ public class JVoteCommand implements CommandExecutor {
                     }
                     break;
                 case STORM:
-                    for(World world : Bukkit.getWorlds()){
+                    for (World world : Bukkit.getWorlds()) {
                         if (!world.hasStorm()) {
                             world.setWeatherDuration(5);
                         }
