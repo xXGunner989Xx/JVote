@@ -67,7 +67,7 @@ public class JVoteCommand implements CommandExecutor {
         Player player = (Player) sender;
         if (voteStarted.get()) {
             // vote started, check that the user actually supplied a yes or no vote
-            if (!("yes".contains(args[0].toLowerCase()) || "no".contains(args[0].toLowerCase()))) {
+            if (!("yes".contains(args[0].toLowerCase()) || "no".contains(args[0].toLowerCase()) || "ok".contains(args[0].toLowerCase()))) {
                 // invalid usage, return false
                 sender.sendMessage(JVoteUtils.printMessage("A vote is already in progress"));
                 plugin.logger(Level.WARNING, "Attempted /vote after vote started with improper args");
@@ -127,7 +127,7 @@ public class JVoteCommand implements CommandExecutor {
         }
         sender.sendMessage(JVoteUtils.printMessage("You have voted"));
         playerHasVoted.add(player);
-        if ("yes".contains(arg.toLowerCase())) {
+        if ("yes".contains(arg.toLowerCase()) || "ok".contains(arg.toLowerCase())) {
             currentVotePercentage = (double) totalVotes.incrementAndGet()
                     / Bukkit.getServer().getOnlinePlayers().length;
         } else if ("no".contains(arg.toLowerCase())) {
