@@ -53,7 +53,7 @@ public class JVoteCommand implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         // there should be two types of votes: one where the vote is initiated, and one where the vote is yes/no
         if (args.length != 1) {
-            String msg = JVoteUtils.printMessage("Proper usage is &a/vote <day/night/storm/clear>");
+            String msg = JVoteUtils.printMessage("Proper usage is &a/vote <day/night/rain/storm/clear>");
             sender.sendMessage(msg);
             // invalid usage (should be /vote {type of vote}
             plugin.logger(Level.WARNING, "Attempted /vote with invalid number of args");
@@ -89,7 +89,7 @@ public class JVoteCommand implements CommandExecutor {
                     sender.sendMessage(JVoteUtils.printMessage("This vote is on cool down"));
                     return true;
                 }
-                // TODO: fetch these from some config file. For now, only day/night and clear/storm
+                // TODO: fetch these from some config file. For now, only day/night and clear/rain/storm
                 // invalid usage, return false
                 currentVoteType = JVoteEnums.valueOf(args[0].toUpperCase());
                 String msg = JVoteUtils.printMessage(
@@ -105,7 +105,7 @@ public class JVoteCommand implements CommandExecutor {
                 }
 
             } catch (IllegalArgumentException e) {
-                String msg = JVoteUtils.printMessage("Proper usage is &a/vote <day/night/storm/clear>");
+                String msg = JVoteUtils.printMessage("Proper usage is &a/vote <day/night/rain/storm/clear>");
                 sender.sendMessage(msg);
                 plugin.logger(Level.WARNING, "Attempted to start /vote with improper argument");
                 return true;
@@ -173,11 +173,20 @@ public class JVoteCommand implements CommandExecutor {
                         }
                     }
                     break;
+                case RAIN:
+                    for(World world : Bukkit.getWorlds()){
+                        if (!world.hasStorm()) {
+                            world.setWeatherDuration(5);
+                        }
+                        world.setThundering(false);
+                    }
+                    break;
                 case STORM:
                     for(World world : Bukkit.getWorlds()){
                         if (!world.hasStorm()) {
                             world.setWeatherDuration(5);
                         }
+                        world.setThundering(true);
                     }
                     break;
                 default:
